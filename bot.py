@@ -1,62 +1,55 @@
-import logging
-from telegram import Update
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    ConversationHandler,
-    filters,
-    ContextTypes,
-)
+import telebot
+from telebot import types
 
 BOT_TOKEN = "8215069956:AAEOV4XA1BlW24oRyJpi7FCS0Zq1Uyx-o_c"
 MANAGER_CHAT_ID = 472503405
 
-PROJECT_NAME, TOPIC, SUBSCRIBERS, BUDGET, DEADLINE = range(5)
+bot = telebot.TeleBot(BOT_TOKEN)
 
-logging.basicConfig(level=logging.INFO)
+user_data = {}
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+@bot.message_handler(commands=['start'])
+def start(message):
+    user_data[message.chat.id] = {}
+    bot.send_message(
+        message.chat.id,
         "👋 Привіт! Я бот WWC Agency — маркетингового агентства для крипто-проектів та Telegram-каналів.\n\n"
         "Ми допоможемо знайти якісний трафік, запустити рекламу та масштабувати аудиторію 🚀\n\n"
         "Давай заповнимо коротку заявку і наш менеджер зв'яжеться з тобою найближчим часом!\n\n"
         "Як називається твій проект?"
     )
-    return PROJECT_NAME
+    bot.register_next_step_handler(message, get_project_name)
 
-async def project_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['project_name'] = update.message.text
-    await update.message.reply_text("📌 Яка тематика проекту? Про що він?")
-    return TOPIC
+def get_project_name(message):
+    user_data[message.chat.id]['project_name'] = message.text
+    bot.send_message(message.chat.id, "📌 Яка тематика проекту? Про що він?")
+    bot.register_next_step_handler(message, get_topic)
 
-async def topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['topic'] = update.message.text
-    await update.message.reply_text("👥 Скільки підписників тобі потрібно?")
-    return SUBSCRIBERS
+def get_topic(message):
+    user_data[message.chat.id]['topic'] = message.text
+    bot.send_message(message.chat.id, "👥 Скільки підписників тобі потрібно?")
+    bot.register_next_step_handler(message, get_subscribers)
 
-async def subscribers(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['subscribers'] = update.message.text
-    await update.message.reply_text("💰 Який твій бюджет?")
-    return BUDGET
+def get_subscribers(message):
+    user_data[message.chat.id]['subscribers'] = message.text
+    bot.send_message(message.chat.id, "💰 Який твій бюджет?")
+    bot.register_next_step_handler(message, get_budget)
 
-async def budget(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['budget'] = update.message.text
-    await update.message.reply_text("⏰ Які часові обмеження? Коли потрібен результат?")
-    return DEADLINE
+def get_budget(message):
+    user_data[message.chat.id]['budget'] = message.text
+    bot.send_message(message.chat.id, "⏰ Які часові обмеження? Коли потрібен результат?")
+    bot.register_next_step_handler(message, get_deadline)
 
-async def deadline(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['deadline'] = update.message.text
+def get_deadline(message):
+    user_data[message.chat.id]['deadline'] = message.text
+    data = user_data[message.chat.id]
 
-    user = update.message.from_user
-    data = context.user_data
+    username = f"@{message.from_user.username}" if message.from_user.username else "немає username"
 
-    username = f"@{user.username}" if user.username else "немає username"
-
-    message = (
+    manager_message = (
         f"🔔 *Нова заявка!*\n\n"
-        f"👤 Від: {user.full_name} ({username})\n"
-        f"🆔 ID: `{user.id}`\n\n"
+        f"👤 Від: {message.from_user.full_name} ({username})\n"
+        f"🆔 ID: `{message.chat.id}`\n\n"
         f"📋 *Деталі:*\n"
         f"• Проект: {data['project_name']}\n"
         f"• Тематика: {data['topic']}\n"
@@ -65,42 +58,14 @@ async def deadline(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• Дедлайн: {data['deadline']}"
     )
 
-    await context.bot.send_message(
-        chat_id=MANAGER_CHAT_ID,
-        text=message,
-        parse_mode='Markdown'
-    )
+    bot.send_message(MANAGER_CHAT_ID, manager_message, parse_mode='Markdown')
 
-    await update.message.reply_text(
+    bot.send_message(
+        message.chat.id,
         "✅ Дякуємо за заявку!\n\n"
         "Наш менеджер зв'яжеться з тобою найближчим часом 🤝\n\n"
         "Хочеш залишити ще одну заявку? Напиши /start"
     )
 
-    return ConversationHandler.END
-
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Заявку скасовано. Напиши /start щоб почати знову.")
-    return ConversationHandler.END
-
-def main():
-    app = Application.builder().token(BOT_TOKEN).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
-        states={
-            PROJECT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, project_name)],
-            TOPIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, topic)],
-            SUBSCRIBERS: [MessageHandler(filters.TEXT & ~filters.COMMAND, subscribers)],
-            BUDGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, budget)],
-            DEADLINE: [MessageHandler(filters.TEXT & ~filters.COMMAND, deadline)],
-        },
-        fallbacks=[CommandHandler('cancel', cancel)],
-    )
-
-    app.add_handler(conv_handler)
-    print("Бот запущено ✅")
-    app.run_polling()
-
-if __name__ == '__main__':
-    main()
+print("Бот запущено ✅")
+bot.infinity_polling()

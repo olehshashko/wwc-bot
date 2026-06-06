@@ -16,11 +16,9 @@ TEXTS = {
         'budget': "💰 Який твій бюджет?",
         'deadline': "⏰ Які часові обмеження? Коли потрібен результат?",
         'thanks': "✅ Дякуємо за заявку!\n\nНаш менеджер зв'яжеться з тобою найближчим часом 🤝\n\nХочеш залишити ще одну заявку? Напиши /start",
-        'project': "Проект",
-        'theme': "Тематика",
-        'subs': "Підписники",
-        'budget_label': "Бюджет",
-        'deadline_label': "Дедлайн",
+        'accepted': "✅ Вашу заявку прийнято в роботу! Менеджер зв'яжеться з вами найближчим часом 🤝",
+        'rejected': "❌ На жаль, ми не можемо взяти вашу заявку в роботу на даний момент. Якщо є питання — напишіть нам напряму.",
+        'project': "Проект", 'theme': "Тематика", 'subs': "Підписники", 'budget_label': "Бюджет", 'deadline_label': "Дедлайн",
     },
     'ru': {
         'welcome': "👋 Привет! Я бот WWC Agency — маркетингового агентства для крипто-проектов и Telegram-каналов.\n\nМы поможем найти качественный трафик, запустить рекламу и масштабировать аудиторию 🚀\n\nДавай заполним короткую заявку и наш менеджер свяжется с тобой в ближайшее время!\n\nКак называется твой проект?",
@@ -29,24 +27,20 @@ TEXTS = {
         'budget': "💰 Какой твой бюджет?",
         'deadline': "⏰ Какие временные ограничения? Когда нужен результат?",
         'thanks': "✅ Спасибо за заявку!\n\nНаш менеджер свяжется с тобой в ближайшее время 🤝\n\nХочешь оставить ещё одну заявку? Напиши /start",
-        'project': "Проект",
-        'theme': "Тематика",
-        'subs': "Подписчики",
-        'budget_label': "Бюджет",
-        'deadline_label': "Дедлайн",
+        'accepted': "✅ Ваша заявка принята в работу! Менеджер свяжется с вами в ближайшее время 🤝",
+        'rejected': "❌ К сожалению, мы не можем взять вашу заявку в работу на данный момент. Если есть вопросы — напишите нам напрямую.",
+        'project': "Проект", 'theme': "Тематика", 'subs': "Подписчики", 'budget_label': "Бюджет", 'deadline_label': "Дедлайн",
     },
     'en': {
         'welcome': "👋 Hi! I'm the WWC Agency bot — a marketing agency for crypto projects and Telegram channels.\n\nWe help find quality traffic, launch ad campaigns and scale your audience 🚀\n\nLet's fill out a quick application and our manager will contact you soon!\n\nWhat is your project called?",
-        'topic': "📌 What is the topic of your project? What is it about?",
+        'topic': "📌 What is the topic of your project?",
         'subscribers': "👥 How many subscribers do you need?",
         'budget': "💰 What is your budget?",
         'deadline': "⏰ Any time constraints? When do you need results?",
-        'thanks': "✅ Thank you for your application!\n\nOur manager will contact you soon 🤝\n\nWant to submit another application? Type /start",
-        'project': "Project",
-        'theme': "Topic",
-        'subs': "Subscribers",
-        'budget_label': "Budget",
-        'deadline_label': "Deadline",
+        'thanks': "✅ Thank you for your application!\n\nOur manager will contact you soon 🤝\n\nWant to submit another? Type /start",
+        'accepted': "✅ Your application has been accepted! Our manager will contact you soon 🤝",
+        'rejected': "❌ Unfortunately, we cannot take your application at the moment. Contact us directly if you have questions.",
+        'project': "Project", 'theme': "Topic", 'subs': "Subscribers", 'budget_label': "Budget", 'deadline_label': "Deadline",
     }
 }
 
@@ -61,60 +55,68 @@ def send_language_keyboard(chat_id):
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    user_data[message.chat.id] = {'step': 'lang'}
+    user_data[message.chat.id] = {}
     bot.clear_step_handler_by_chat_id(message.chat.id)
     send_language_keyboard(message.chat.id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('lang_'))
 def handle_language(call):
     lang = call.data.split('_')[1]
-    user_data[call.message.chat.id] = {'lang': lang, 'step': 'project'}
+    user_data[call.message.chat.id] = {'lang': lang}
     bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
-    flag = {"uk": "🇺🇦", "ru": "🇷🇺", "en": "🇬🇧"}.get(lang, "")
-    bot.answer_callback_query(call.id, f"{flag} Мову вибрано!")
+    bot.answer_callback_query(call.id)
     bot.send_message(call.message.chat.id, TEXTS[lang]['welcome'])
     bot.register_next_step_handler_by_chat_id(call.message.chat.id, get_project_name)
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('accept_') or call.data.startswith('reject_'))
+def handle_manager_action(call):
+    parts = call.data.split('_')
+    action = parts[0]
+    client_chat_id = int(parts[1])
+    lang = parts[2] if len(parts) > 2 else 'ru'
+    t = TEXTS.get(lang, TEXTS['ru'])
+
+    if action == 'accept':
+        bot.send_message(client_chat_id, t['accepted'])
+        new_text = call.message.text + "\n\n✅ *Прийнято в роботу*"
+        bot.answer_callback_query(call.id, "✅ Клієнту відправлено підтвердження")
+    else:
+        bot.send_message(client_chat_id, t['rejected'])
+        new_text = call.message.text + "\n\n❌ *Відхилено*"
+        bot.answer_callback_query(call.id, "❌ Клієнту відправлено відмову")
+
+    bot.edit_message_text(new_text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+
 def get_project_name(message):
-    if message.text and message.text.startswith('/'):
-        start(message)
-        return
+    if message.text and message.text.startswith('/'): start(message); return
     user_data[message.chat.id]['project_name'] = message.text
     lang = user_data[message.chat.id]['lang']
     bot.send_message(message.chat.id, TEXTS[lang]['topic'])
     bot.register_next_step_handler(message, get_topic)
 
 def get_topic(message):
-    if message.text and message.text.startswith('/'):
-        start(message)
-        return
+    if message.text and message.text.startswith('/'): start(message); return
     user_data[message.chat.id]['topic'] = message.text
     lang = user_data[message.chat.id]['lang']
     bot.send_message(message.chat.id, TEXTS[lang]['subscribers'])
     bot.register_next_step_handler(message, get_subscribers)
 
 def get_subscribers(message):
-    if message.text and message.text.startswith('/'):
-        start(message)
-        return
+    if message.text and message.text.startswith('/'): start(message); return
     user_data[message.chat.id]['subscribers'] = message.text
     lang = user_data[message.chat.id]['lang']
     bot.send_message(message.chat.id, TEXTS[lang]['budget'])
     bot.register_next_step_handler(message, get_budget)
 
 def get_budget(message):
-    if message.text and message.text.startswith('/'):
-        start(message)
-        return
+    if message.text and message.text.startswith('/'): start(message); return
     user_data[message.chat.id]['budget'] = message.text
     lang = user_data[message.chat.id]['lang']
     bot.send_message(message.chat.id, TEXTS[lang]['deadline'])
     bot.register_next_step_handler(message, get_deadline)
 
 def get_deadline(message):
-    if message.text and message.text.startswith('/'):
-        start(message)
-        return
+    if message.text and message.text.startswith('/'): start(message); return
     user_data[message.chat.id]['deadline'] = message.text
     data = user_data[message.chat.id]
     lang = data['lang']
@@ -134,7 +136,13 @@ def get_deadline(message):
         f"• {t['deadline_label']}: {data['deadline']}"
     )
 
-    bot.send_message(MANAGER_CHAT_ID, manager_message, parse_mode='Markdown')
+    markup = types.InlineKeyboardMarkup()
+    markup.row(
+        types.InlineKeyboardButton("✅ Взяти в роботу", callback_data=f"accept_{message.chat.id}_{lang}"),
+        types.InlineKeyboardButton("❌ Відхилити", callback_data=f"reject_{message.chat.id}_{lang}")
+    )
+
+    bot.send_message(MANAGER_CHAT_ID, manager_message, parse_mode='Markdown', reply_markup=markup)
     bot.send_message(message.chat.id, t['thanks'])
 
 print("Бот запущено ✅")

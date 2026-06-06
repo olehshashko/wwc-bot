@@ -205,6 +205,8 @@ def get_channel(message):
     bot.send_message(message.chat.id, t['thanks'])
 
 print("Бот запущено ✅")
+bot.delete_webhook(drop_pending_updates=True)
+time.sleep(2)
 while True:
     try:
         bot.infinity_polling(timeout=60, long_polling_timeout=60)

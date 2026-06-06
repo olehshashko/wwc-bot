@@ -1,11 +1,11 @@
 import telebot
 from telebot import types
+import requests
 
 BOT_TOKEN = "8215069956:AAEOV4XA1BlW24oRyJpi7FCS0Zq1Uyx-o_c"
 MANAGER_CHAT_ID = 472503405
 
 bot = telebot.TeleBot(BOT_TOKEN)
-
 user_data = {}
 
 TEXTS = {
@@ -15,9 +15,11 @@ TEXTS = {
         'subscribers': "👥 Скільки підписників тобі потрібно?",
         'budget': "💰 Який твій бюджет?",
         'deadline': "⏰ Які часові обмеження? Коли потрібен результат?",
+        'channel': "🔗 Скинь посилання на свій Telegram канал (наприклад t.me/назва):",
         'thanks': "✅ Дякуємо за заявку!\n\nНаш менеджер зв'яжеться з тобою найближчим часом 🤝\n\nХочеш залишити ще одну заявку? Напиши /start",
         'accepted': "✅ Вашу заявку прийнято в роботу! Менеджер зв'яжеться з вами найближчим часом 🤝",
         'rejected': "❌ На жаль, ми не можемо взяти вашу заявку в роботу на даний момент. Якщо є питання — напишіть нам напряму.",
+        'channel_error': "⚠️ Не вдалось знайти канал. Перевір посилання і спробуй ще раз (формат: t.me/назва або @назва):",
         'project': "Проект", 'theme': "Тематика", 'subs': "Підписники", 'budget_label': "Бюджет", 'deadline_label': "Дедлайн",
     },
     'ru': {
@@ -26,9 +28,11 @@ TEXTS = {
         'subscribers': "👥 Сколько подписчиков тебе нужно?",
         'budget': "💰 Какой твой бюджет?",
         'deadline': "⏰ Какие временные ограничения? Когда нужен результат?",
+        'channel': "🔗 Скинь ссылку на свой Telegram канал (например t.me/название):",
         'thanks': "✅ Спасибо за заявку!\n\nНаш менеджер свяжется с тобой в ближайшее время 🤝\n\nХочешь оставить ещё одну заявку? Напиши /start",
         'accepted': "✅ Ваша заявка принята в работу! Менеджер свяжется с вами в ближайшее время 🤝",
-        'rejected': "❌ К сожалению, мы не можем взять вашу заявку в работу на данный момент. Если есть вопросы — напишите нам напрямую.",
+        'rejected': "❌ К сожалению, мы не можем взять вашу заявку в работу. Если есть вопросы — напишите нам напрямую.",
+        'channel_error': "⚠️ Не удалось найти канал. Проверь ссылку и попробуй ещё раз (формат: t.me/название или @название):",
         'project': "Проект", 'theme': "Тематика", 'subs': "Подписчики", 'budget_label': "Бюджет", 'deadline_label': "Дедлайн",
     },
     'en': {
@@ -37,12 +41,46 @@ TEXTS = {
         'subscribers': "👥 How many subscribers do you need?",
         'budget': "💰 What is your budget?",
         'deadline': "⏰ Any time constraints? When do you need results?",
+        'channel': "🔗 Send a link to your Telegram channel (e.g. t.me/name):",
         'thanks': "✅ Thank you for your application!\n\nOur manager will contact you soon 🤝\n\nWant to submit another? Type /start",
         'accepted': "✅ Your application has been accepted! Our manager will contact you soon 🤝",
         'rejected': "❌ Unfortunately, we cannot take your application at the moment. Contact us directly if you have questions.",
+        'channel_error': "⚠️ Channel not found. Check the link and try again (format: t.me/name or @name):",
         'project': "Project", 'theme': "Topic", 'subs': "Subscribers", 'budget_label': "Budget", 'deadline_label': "Deadline",
     }
 }
+
+def get_channel_info(username):
+    try:
+        username = username.strip().replace('https://', '').replace('http://', '')
+        if username.startswith('t.me/'):
+            username = username[5:]
+        if username.startswith('@'):
+            username = username[1:]
+        username = username.split('/')[0].strip()
+
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChat"
+        resp = requests.get(url, params={'chat_id': f'@{username}'}, timeout=10)
+        data = resp.json()
+
+        if not data.get('ok'):
+            return None
+
+        chat = data['result']
+
+        count_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMemberCount"
+        count_resp = requests.get(count_url, params={'chat_id': f'@{username}'}, timeout=10)
+        count_data = count_resp.json()
+        member_count = count_data['result'] if count_data.get('ok') else '—'
+
+        return {
+            'title': chat.get('title', '—'),
+            'username': username,
+            'description': chat.get('description', '—'),
+            'members': member_count
+        }
+    except:
+        return None
 
 def send_language_keyboard(chat_id):
     markup = types.InlineKeyboardMarkup()
@@ -118,9 +156,26 @@ def get_budget(message):
 def get_deadline(message):
     if message.text and message.text.startswith('/'): start(message); return
     user_data[message.chat.id]['deadline'] = message.text
-    data = user_data[message.chat.id]
-    lang = data['lang']
+    lang = user_data[message.chat.id]['lang']
+    bot.send_message(message.chat.id, TEXTS[lang]['channel'])
+    bot.register_next_step_handler(message, get_channel)
+
+def get_channel(message):
+    if message.text and message.text.startswith('/'): start(message); return
+    lang = user_data[message.chat.id]['lang']
     t = TEXTS[lang]
+
+    channel_info = get_channel_info(message.text)
+
+    if not channel_info:
+        bot.send_message(message.chat.id, t['channel_error'])
+        bot.register_next_step_handler(message, get_channel)
+        return
+
+    user_data[message.chat.id]['channel'] = message.text
+    user_data[message.chat.id]['channel_info'] = channel_info
+
+    data = user_data[message.chat.id]
     flag = {"uk": "🇺🇦", "ru": "🇷🇺", "en": "🇬🇧"}.get(lang, "")
     username = f"@{message.from_user.username}" if message.from_user.username else "—"
 
@@ -133,7 +188,12 @@ def get_deadline(message):
         f"• {t['theme']}: {data['topic']}\n"
         f"• {t['subs']}: {data['subscribers']}\n"
         f"• {t['budget_label']}: {data['budget']}\n"
-        f"• {t['deadline_label']}: {data['deadline']}"
+        f"• {t['deadline_label']}: {data['deadline']}\n\n"
+        f"📊 *Статистика каналу:*\n"
+        f"• Назва: {channel_info['title']}\n"
+        f"• Username: @{channel_info['username']}\n"
+        f"• Підписників: {channel_info['members']}\n"
+        f"• Опис: {channel_info['description'][:100] if channel_info['description'] != '—' else '—'}"
     )
 
     markup = types.InlineKeyboardMarkup()

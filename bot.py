@@ -1,6 +1,7 @@
 import telebot
 from telebot import types
 import requests
+import time
 
 BOT_TOKEN = "8215069956:AAEOV4XA1BlW24oRyJpi7FCS0Zq1Uyx-o_c"
 MANAGER_CHAT_ID = 472503405
@@ -62,10 +63,8 @@ def get_channel_info(username):
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChat"
         resp = requests.get(url, params={'chat_id': f'@{username}'}, timeout=10)
         data = resp.json()
-
         if not data.get('ok'):
             return None
-
         chat = data['result']
 
         count_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMemberCount"
@@ -189,9 +188,9 @@ def get_channel(message):
         f"• {t['subs']}: {data['subscribers']}\n"
         f"• {t['budget_label']}: {data['budget']}\n"
         f"• {t['deadline_label']}: {data['deadline']}\n\n"
-        f"📊 *Статистика каналу:*\n"
+        f"📊 *Канал клієнта:*\n"
         f"• Назва: {channel_info['title']}\n"
-        f"• Username: @{channel_info['username']}\n"
+        f"• @{channel_info['username']}\n"
         f"• Підписників: {channel_info['members']}\n"
         f"• Опис: {channel_info['description'][:100] if channel_info['description'] != '—' else '—'}"
     )
@@ -206,4 +205,9 @@ def get_channel(message):
     bot.send_message(message.chat.id, t['thanks'])
 
 print("Бот запущено ✅")
-bot.infinity_polling()
+while True:
+    try:
+        bot.infinity_polling(timeout=60, long_polling_timeout=60)
+    except Exception as e:
+        print(f"Помилка: {e}")
+        time.sleep(5)

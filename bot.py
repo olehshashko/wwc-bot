@@ -201,7 +201,7 @@ def get_channel(message):
         types.InlineKeyboardButton("❌ Відхилити", callback_data=f"reject_{message.chat.id}_{lang}")
     )
 
-    bot.send_message(MANAGER_CHAT_ID, manager_message, parse_mode='Markdown', reply_markup=markup)
+    bot.send_message(MANAGER_CHAT_ID, manager_message, reply_markup=markup)
     bot.send_message(message.chat.id, t['thanks'])
 
 print("Бот запущено ✅")

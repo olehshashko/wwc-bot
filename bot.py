@@ -39,7 +39,7 @@ TEXTS = {
             "3. Ми підбираємо кращі канали\n"
             "4. Запускаємо рекламу і ти отримуєш підписників\n\n"
             "📞 *Контакти:*\n"
-            "• Менеджер: @vampiremain\n"
+            "• Менеджер: @nazar_qwe\n"
             "• Сайт: worldwidecrypto.agency"
         ),
     },
@@ -68,7 +68,7 @@ TEXTS = {
             "3. Мы подбираем лучшие каналы\n"
             "4. Запускаем рекламу и ты получаешь подписчиков\n\n"
             "📞 *Контакты:*\n"
-            "• Менеджер: @vampiremain\n"
+            "• Менеджер: @nazar_qwe\n"
             "• Сайт: worldwidecrypto.agency"
         ),
     },
@@ -97,7 +97,7 @@ TEXTS = {
             "3. We find the best channels\n"
             "4. We run ads and you get subscribers\n\n"
             "📞 *Contacts:*\n"
-            "• Manager: @vampiremain\n"
+            "• Manager: @nazar_qwe\n"
             "• Website: worldwidecrypto.agency"
         ),
     }

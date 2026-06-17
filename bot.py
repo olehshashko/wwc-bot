@@ -332,8 +332,7 @@ def get_channel(message):
     contact_markup = types.InlineKeyboardMarkup()
     contact_markup.row(types.InlineKeyboardButton("💬 Написати менеджеру", url="https://t.me/nazar_qwe"))
     bot.send_message(message.chat.id, t['thanks'])
-    bot.send_message(message.chat.id, t['service_card'], parse_mode='Markdown', reply_markup=contact_markup)
-
+    bot.send_message(message.chat.id, t['service_card'], reply_markup=contact_markup)
     msg_id = f"{MANAGER_CHAT_ID}_{sent.message_id}"
     pending_applications[msg_id] = {'client_name': message.from_user.full_name}
 
@@ -344,3 +343,4 @@ print("Бот запущено ✅")
 bot.remove_webhook()
 time.sleep(3)
 bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
+

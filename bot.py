@@ -330,7 +330,7 @@ def get_channel(message):
 
     # Сервісна картка клієнту
     contact_markup = types.InlineKeyboardMarkup()
-    contact_markup.row(types.InlineKeyboardButton("💬 Написати менеджеру", url="https://t.me/vampiremain"))
+    contact_markup.row(types.InlineKeyboardButton("💬 Написати менеджеру", url="https://t.me/nazar_qwe"))
     bot.send_message(message.chat.id, t['thanks'])
     bot.send_message(message.chat.id, t['service_card'], parse_mode='Markdown', reply_markup=contact_markup)
 
